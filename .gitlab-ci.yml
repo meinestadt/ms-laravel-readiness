@@ -1,0 +1,70 @@
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+(-.+)?$/
+
+
+variables:
+  ARTIFACTORY_URL: "${ARTIFACTORY_API_URL}"
+  PATCH_NUMBER: 1
+  VERSION: "v1.0.0-${PATCH_NUMBER}"
+  BUILD_NAME: "${CI_PROJECT_NAME}-debug"
+
+
+build-app:
+  image: ${PHP_FPM_EXTENDED_8_4_IMAGE}
+  extends:
+    - .build-app
+
+
+test-app-security:
+  extends:
+    - .test-app-wiz-security
+
+
+deploy_package:
+  extends: .deploy-variable-setup
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+(-.+)?$/
+  stage: deploy-app
+  image: ${PHP_FPM_EXTENDED_BUILDER_8_4_IMAGE}
+  script:
+    - |
+      set -vex
+
+      # Extract version from tag (omitting the optional prefixed 'v'), or use existing VERSION
+      export VERSION=${CI_COMMIT_TAG:+${CI_COMMIT_TAG#v}}
+      export FILENAME="${FILENAME:-"${BUILD_NAME}-${VERSION}.zip"}"
+      
+      # Add version to composer.json
+      jq --arg version "$VERSION" '. + {version: $version}' composer.json > composer.json.tmp
+      mv composer.json.tmp composer.json
+
+      # Create package archive using Composer (respects .gitattributes export-ignore)
+      composer archive --format=zip --file="${BUILD_NAME}-${VERSION}" --dir=.
+
+      # Prepare CVE description for Artifactory
+      export CVE_DESCRIPTION=$(printf "found CVEs: %s" "${WIZ_APP_vulnerabilities_VUNERABILITIES:-none}" | jq -sRr @uri)
+      
+      # Upload package to Artifactory with CVE metadata
+      curl \
+        -ivs \
+        -u ${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN} \
+        -T $FILENAME \
+        "${ARTIFACTORY_URL}/composer-local/${BUILD_NAME}/${FILENAME};description=${CVE_DESCRIPTION};version=${VERSION}"
+  artifacts:
+    paths:
+      - ${BUILD_NAME}-*.zip
+    expire_in: 30 days
+
+
+include:
+  - project: 'ms/templates/pipelines'
+    ref: generic-charts
+    file:
+      - 'helpers/auto-tag-on-branch.yml'
+      - 'helpers/pipeline-defaults.yml'
+
+      - 'build-app/php/composer-php-8-4.yml'
+      - 'test-app/php/phpunit-testsuite.yml'
+      - 'test-app/wiz-security.yml'

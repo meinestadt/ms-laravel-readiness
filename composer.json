@@ -1,0 +1,31 @@
+{
+    "name": "meinestadt/ms-laravel-readiness",
+    "description": "simple package to provide a readiness controller for drop-in use in projects running on k8s. tests each sql- connection and each redis connection for functionality.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Meinestadt\\MsLaravelReadiness\\": "src/"
+        }
+    },
+    "keywords": [
+        "Laravel",
+        "k8s",
+        "kubernetes",
+        "readiness"
+    ],
+    "authors": [
+        {
+            "name": "Dirk Gustke",
+            "email": "dirk.gustke@meinestadt.de"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "illuminate/support": ">=9.0",
+        "illuminate/database": ">=9.0",
+        "illuminate/redis": ">=9.0",
+        "illuminate/http": ">=9.0",
+        "illuminate/routing": ">=9.0"
+    }
+}
