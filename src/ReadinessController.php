@@ -59,6 +59,10 @@ final class ReadinessController extends Controller
         $redisConnections = array_diff($redisConnections, ['client', 'options', 'clusters']);
         foreach ($redisConnections as $name) {
             try {
+                // ignore local stuff
+                if (str_ends_with(config("database.redis.{$name}.host"), '.local')) {
+                    continue;
+                }
                 $info = explode(" ", trim(Redis::connection($name)->executeRaw(['CLIENT', 'INFO'])));
                 $info = array_reduce($info, function ($carry, $item) {
                     [$key, $value] = explode('=', $item, 2);
