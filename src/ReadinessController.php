@@ -55,12 +55,19 @@ final class ReadinessController extends Controller
             }
         }
 
-        $redisConnections = array_keys(config('database.redis', []));
-        $redisConnections = array_diff($redisConnections, ['client', 'options', 'clusters']);
-        foreach ($redisConnections as $name) {
+        $redisConnections = array_filter(
+            config('database.redis', []),
+            fn (mixed $value): bool => is_array($value),
+        );
+        $redisConnections = array_filter(
+            $redisConnections,
+            fn (array $connection): bool => isset($connection['host'], $connection['port']),
+        );
+
+        foreach (array_keys($redisConnections) as $name) {
             try {
                 // ignore local stuff
-                if (str_ends_with(config("database.redis.{$name}.host"), '.local')) {
+                if (str_ends_with($redisConnections[$name]['host'], '.local')) {
                     continue;
                 }
                 $info = explode(" ", trim(Redis::connection($name)->executeRaw(['CLIENT', 'INFO'])));
